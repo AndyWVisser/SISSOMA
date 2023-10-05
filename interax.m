@@ -46,62 +46,11 @@ end
 
 %% Degradation
 
-
-% % Scenario A:
-% dNrem = remin(:).*N(:); 
-% dNrom = -dNrem + [dNrem(2:end); 0];
-% dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end); % cancel 
-% dNrom(1:Nd:end) = dNrom(1:Nd:end) + [dNrom(Nd+1:Nd:end) ; 0]; % move it to the previous size-class/ same density  
-% dMremin = dNrom(:).*m(:); 
-% dMremin(1:Nd:end) = dMremin(1:Nd:end)- Rrate*M(1:Nd:end); 
-
-
-% % Scenario B:
-% dNrem = remin(:).*N(:); 
-% dNrom = -dNrem + [dNrem(2:end); 0];
-% dMremin = dNrom(:).*m(:); 
-% dMremin(1:Nd:end) = dMremin(1:Nd:end)- Rrate*M(1:Nd:end); 
-
-% Txomin's
 dNrem = remin(:).*N(:);
 dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1) 
-dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end);
-dMremin = dNrom(:).*m(:); %go back to dM (mass multiplying by mass per particle)
-dMremin(1:Nd:end) = dMremin(1:Nd:end)- Rrate*M(1:Nd:end);  % why add the Rrate*M ??? --> ensure remin make mass leave syst at Z=1
-
-
-
-
-
-
-
-
-
-
-% dNrem = remin(:).*N(:);
-% dNrom = -dNrem + [dNrem(2:end); 0];
-% dMremin = dNrom.*m(:);
-% dMremin(1:Nd:end) = dMremin(1:Nd:end) - Rrate*M(1:Nd:end);
-
-
-
-% dNrem = remin(:).*N(:);
-% dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1) 
-% dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end);
-% dMremin = dNrom(:).*m(:); % go back to dM (mass multiplying by mass per particle)
-% dMremin(1:Nd:end) = dMremin(1:Nd:end)- Rrate*M(1:Nd:end);  % why add the Rrate*M ??? --> ensure remin make mass leave syst at Z=1
-
-
-
-% dNrem = remin(:).*N(:);
-% dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1) 
-% dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end);
-% % N_mat=reshape(N,10,30);
-% % remin_mat=reshape(remin,10,30);
-% % dNrem=remin_mat.*N_mat;
-% % dNrom=-dNrem + [dNrem(2:end,:); zeros(1, size(dNrem, 2))];
-% dMremin = dNrom(:).*m(:); %go back to dM (mass multiplying by mass per particle)
-% dMremin(1:Nd:end) = dMremin(1:Nd:end)- Rrate*M(1:Nd:end);  % why add the Rrate*M ??? --> ensure remin make mass leave syst at Z=1
+dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end); % fix for bins: 10,20,30... (high density)--> nothing comes in
+dMremin = dNrom(:).*m(:); % go back to dM (mass multiplying by mass per particle)
+dMremin(1:Nd:end) = dMremin(1:Nd:end)- Rrate*M(1:Nd:end);  % ensure remin make mass to leave the system at Z=1 (low density)
 
 
 %% Fragmentation
