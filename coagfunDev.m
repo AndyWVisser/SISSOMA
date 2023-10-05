@@ -1,4 +1,4 @@
-function sim = coagfun001(a,alpha,epsilon,Ptotal,Rrate,Frate,Tmax,seasonal)
+function sim = coagfunDev(a,alpha,epsilon,Ptotal,Rrate,Frate,Tmax,seasonal)
 
 arguments
     a double = 2;           % selfsimilarity parameter; typically between 1.8 and 2.0
