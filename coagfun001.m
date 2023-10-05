@@ -1,5 +1,3 @@
-
-
 function sim = coagfun001(a,alpha,epsilon,Ptotal,Rrate,Frate,Tmax,seasonal)
 
 arguments
@@ -18,17 +16,16 @@ p.alpha = alpha; % stickiness
 p.epsilon = epsilon; % [m^2 s^-3] % energy dissipation rate 
 p.Ptotal = Ptotal; % [µg C m^2 day^-1] % 
 p.seasonal = seasonal;
-H = 50;     p.H = H;        %[m] depth of mixed layer
+H = 50;     p.H = H;        % [m] depth of mixed layer
 strata = 1; p.strata = strata; % not used 
 rMax = 1E6; p.rMax = rMax;  % [µm] maximum radius
-ro = 1 ;  p.ro = ro;  %[µm] min radius
+ro = 1 ;  p.ro = ro;  % [µm] min radius
 rho_sw = 1027;  p.rho_sw = rho_sw; % density of seawater [kg m^-3]
 nu = 1E-6;      % [m^2 s^-1] kinematic viscosity of seawater
 mu = nu*rho_sw; % [kg m^-1 s^-1] dynamic viscosity of seawater
-kb = 1.38065E-23; %Boltzmann constant [m^2 kg s^-2 K^-1]
+kb = 1.38065E-23; % Boltzmann constant [m^2 kg s^-2 K^-1]
 p.Rrate = Rrate; % [day^-1] remineralization rate
 p.Frate = Frate; % [day^-1] maximum fragmentation rate
-
 
 
 %% grid and combination variables
@@ -45,7 +42,7 @@ k = [0:K-1]';
 b = [0:L-1]';
 z = (2*L + 1 - sqrt((2*L + 1).^2 - 8*k))/2;
 bi = floor(z);
-bj =   k - bi*L + bi.*(bi - 1)/2 + bi;%k - bi*L + bi.*(bi-1)/2 + L (4.13)
+bj =   k - bi*L + bi.*(bi - 1)/2 + bi; %k - bi*L + bi.*(bi-1)/2 + L (4.13)
 xi = floor(bi/Nd); zi = bi - xi*Nd; % Does this make sense? M is nD and N is nR
 xj = floor(bj/Nd); zj = bj - xj*Nd;
 x = [0:Nr-1]; z = [0:Nd-1];
@@ -78,8 +75,8 @@ for i = 1:Nr
     end
 end
 
-%% transformations
 
+%% transformations
 xzb = @(b) [floor(b/(Nd)), b - floor(b/(Nd))*(Nd)]; % bin number into x-z coordinates
 logd = @(x) log(x)./log(delta); %used for finding daughter particles
 zeta = @(xi,xj) (1 + delta.^(a*(xi - xj)));
@@ -114,6 +111,7 @@ f01(koutz) = 0; f11(koutz) = 0; b301(koutz) = b300(koutz); b311(koutz) = b300(ko
 %% environmental variables
 T = 281; %temperature
 
+
 %% sinking speed
 w_tmp = w_mean /(24*3600);        % [m/s]
 r_m = ones(size(z'))*r_mean*1E-6; %[m]
@@ -130,6 +128,7 @@ while max(w_tmp./w_it,[],'all')>1 %iterate until converged (within 0.5-2 times t
 end
 w = w_it*24*3600; % [m / d]
 
+
 %% coagulation kernels
 beta_b = zeros(size(xi));
 beta_s = zeros(size(xi));
@@ -144,99 +143,181 @@ for i = 1:K
     beta_d(i) = 0.5*pi*abs(wi - wj)*(1E-6*ri).^2; % [m^3/s], Differental settling
     beta(i) = (beta_b(i) + beta_s(i) + beta_d(i))*3600*24; %[m^3 / day ] Total encounter rate
 end
+
+
 %% Porosity estimate
 phi = delta.^((a-3)*x_mesh); % phi == 1 - porosity (i.e. dry mass volume fraction)
 
-%% Fragmentation
-f_fun = @(x,z) (delta.^x/(delta^(Nr-1))); % propostional to r
+
+%% Fragmentation rate [
+f_fun = @(x,z) (delta.^x/(delta^(Nr-1))); % proportional to r
 pfrag = Frate*f_fun(x_mesh,z_mesh).*(1-phi);
 pfrag = pfrag*epsilon*1E6;
 dfrag = 0.5;
+
+
 %% Remineralization
 remin = Rrate*((1-q)/(3-a))*(q.^x_mesh).*(1+z_mesh);
 
+
 %% Interactions
-N = zeros(L,1); %number of particles/m^3 
-M = zeros(L,1); % [\mug m^3]
-m = m_mean;
+% N = zeros(L,1); % number of particles/m^3 
+M = zeros(L,1); % [\mug / m^3]
+
 prod = zeros(Nd,Nr);
 prod(1:end,1) = Ptotal/Nd/H;
+
 mdry = phi.*m_mean;
 
-t = 0;
-dM = 0;
+% mdry = v_fun * (d_fun + phi * rho_sw);
+mdry2 = v_mean .* (d_mean * 1E-9 + phi * rho_sw * 1E-9); % [µm]
+
+% t = 0;
+% dM = 0;
 
 %% Time dependent solution 
 tic
 options = odeset('NonNegative',1:length(M(:)));
 if seasonal
     disp('seasonal')
-    [t,dM] = ode15s(@interaxseason, [0:Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),remin(:),Rrate,pfrag(:));
+    [t,Mo] = ode15s(@interaxseason, [0:Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),remin(:),Rrate,pfrag(:));
 else
     disp('non-seasonal')
-    [t,dM] = ode15s(@interax, [0 Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),remin(:),Rrate,pfrag(:));
+    [t,Mo] = ode15s(@interax, [0 Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),remin(:),Rrate,pfrag(:));
 end
 
-runtime = toc  
+runtime = toc
 
 RMSE = 0;
 for i = 1:length(t)-1
-    RMSE(i) = rms((dM(i+1,:)-dM(i,:)));
+    RMSE(i) = rms((Mo(i+1,:)-Mo(i,:)));
 end
+
+
 %% 
 
-Mdry = reshape(dM(end,:),Nd,Nr);
+% dry mass per volume in last time step in each size-density bin [µgC/m3]
+Mdry = reshape(Mo(end,:),Nd,Nr);
+
+% flux out of the H=50m mixed layer --> divide /H ???     [µgC/m2/day]
 Flux = Mdry.*w;
+
+% 
 BFlux = sum(Flux,1);
-N = Mdry./(mdry);
 
-figure(1); clf;
-subplot(2,2,1); imagesc(x,z,Mdry); colorbar;  title('dry mass'); axis xy
-subplot(2,2,2); imagesc(x,z,Flux); colorbar; title('flux'); axis xy
-subplot(2,2,4); semilogy(t(2:end),RMSE,'.'); title('root mean error');
-subplot(2,2,3); plot(x+.5,BFlux,'o'); title('size integrated flux');
+% number of particles per volume [#/m3]
+N = Mdry./ mdry;
 
-[dMdto,dMsink,dMremin,dMfrag] = interax(t,Mdry(:),mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,remin,Rrate,pfrag);
 
+%%
+
+[dMdto,dMsink,dMremin,dMfrag,dMaggreg] = interax(t,Mdry(:),mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,remin,Rrate,pfrag);
+
+
+%% 
+sim.p = p;
 sim.prod = prod;
-sim.M = Mdry;
+sim.t = t;
+sim.Nd = Nd;
+sim.Nr = Nr;
+
+sim.RMSE = RMSE; 
+sim.Mo = Mo;
+sim.Mdry = Mdry;
 sim.Flux = Flux;
+sim.BFlux = BFlux; 
+sim.N = N;
+
 sim.dMdto = dMdto;
 sim.dMsink = dMsink;
 sim.dMremin = dMremin;
 sim.dMfrag = dMfrag;
-sim.RMSE = rms(dM(end,:)-dM(end-1,:));
+sim.dMaggreg= dMaggreg ;
+
 sim.w = w;
-sim.N = N;
-sim.m = m;
-sim.phi = phi;
-sim.frag = pfrag;
-sim.remin = remin;
-sim.d = d_mean;
-sim.r = r_mean;
-sim.v = v_mean;
-sim.e = e_mean;
-sim.t = t;
-sim.dM = dM;
-sim.p = p;
+
 sim.x = x;
 sim.z = z;
+clc
 
-figure(2); clf;
-subplot(3,2,1); imagesc(x,z,reshape(dMdto,Nd,Nr)); colorbar; title('dMdt'); axis xy;
-subplot(3,2,2); imagesc(x,z,reshape(dMsink,Nd,Nr)); colorbar; title('sinking'); axis xy;
-subplot(3,2,4); imagesc(x,z,reshape(dMremin,Nd,Nr)); colorbar; title('remineralization'); axis xy;
-subplot(3,2,3); imagesc(x,z,reshape(dMfrag,Nd,Nr)); colorbar; title('fragmentation'); axis xy;
-subplot(3,2,5); imagesc(x,z,prod); colorbar; title('production'); axis xy;
-%%
-figure(3); clf;
-subplot(6,1,1); imagesc(x,z,reshape(dMdto,Nd,Nr)); colorbar; title('dMdt'); axis xy;
-dM = dMdto - prod(:) - dMsink - dMremin - dMfrag;
-subplot(6,1,2); imagesc(x,z,reshape(dM,Nd,Nr)); colorbar; title('aggregation'); axis xy;
-subplot(6,1,3); imagesc(x,z,reshape(dMsink,Nd,Nr)); colorbar; title('sinking'); axis xy;
-subplot(6,1,4); imagesc(x,z,reshape(dMremin,Nd,Nr)); colorbar; title('remineralization'); axis xy;
-subplot(6,1,5); imagesc(x,z,reshape(dMfrag,Nd,Nr)); colorbar; title('fragmentation'); axis xy;
-subplot(6,1,6); imagesc(x,z,prod); colorbar; title('production'); axis xy;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% figure(1); clf;
+% subplot(2,2,1); imagesc(x,z,Mdry); colorbar;  title('dry mass'); axis xy
+% subplot(2,2,2); imagesc(x,z,Flux); colorbar; title('flux'); axis xy
+% subplot(2,2,4); semilogy(t(2:end),RMSE,'.'); title('root mean error');
+% subplot(2,2,3); plot(x+.5,BFlux,'o'); title('size integrated flux');
+% 
+% [dMdto,dMsink,dMremin,dMfrag] = interax(t,Mdry(:),mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,remin,Rrate,pfrag);
+% 
+% sim.prod = prod;
+% sim.M = Mdry;
+% sim.Flux = Flux;
+% sim.dMdto = dMdto;
+% sim.dMsink = dMsink;
+% sim.dMremin = dMremin;
+% sim.dMfrag = dMfrag;
+% sim.RMSE = rms(dM(end,:)-dM(end-1,:));
+% sim.w = w;
+% sim.N = N;
+% sim.m = m;
+% sim.phi = phi;
+% sim.frag = pfrag;
+% sim.remin = remin;
+% sim.d = d_mean;
+% sim.r = r_mean;
+% sim.v = v_mean;
+% sim.e = e_mean;
+% sim.t = t;
+% sim.dM = dM;
+% sim.p = p;
+% sim.x = x;
+% sim.z = z;
+% 
+% figure(2); clf;
+% subplot(3,2,1); imagesc(x,z,reshape(dMdto,Nd,Nr)); colorbar; title('dMdt'); axis xy;
+% subplot(3,2,2); imagesc(x,z,reshape(dMsink,Nd,Nr)); colorbar; title('sinking'); axis xy;
+% subplot(3,2,4); imagesc(x,z,reshape(dMremin,Nd,Nr)); colorbar; title('remineralization'); axis xy;
+% subplot(3,2,3); imagesc(x,z,reshape(dMfrag,Nd,Nr)); colorbar; title('fragmentation'); axis xy;
+% subplot(3,2,5); imagesc(x,z,prod); colorbar; title('production'); axis xy;
+% %%
+% figure(3); clf;
+% subplot(6,1,1); imagesc(x,z,reshape(dMdto,Nd,Nr)); colorbar; title('dMdt'); axis xy;
+% dM = dMdto - prod(:) - dMsink - dMremin - dMfrag;
+% subplot(6,1,2); imagesc(x,z,reshape(dM,Nd,Nr)); colorbar; title('aggregation'); axis xy;
+% subplot(6,1,3); imagesc(x,z,reshape(dMsink,Nd,Nr)); colorbar; title('sinking'); axis xy;
+% subplot(6,1,4); imagesc(x,z,reshape(dMremin,Nd,Nr)); colorbar; title('remineralization'); axis xy;
+% subplot(6,1,5); imagesc(x,z,reshape(dMfrag,Nd,Nr)); colorbar; title('fragmentation'); axis xy;
+% subplot(6,1,6); imagesc(x,z,prod); colorbar; title('production'); axis xy;
 end
 
 
