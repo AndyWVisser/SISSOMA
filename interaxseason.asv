@@ -1,4 +1,4 @@
-function [dMdt,dMsink,dMremin,dMfrag,dMaggr] = interax(t,M,m,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,remin,Rrate,pfrag, remin_grid)
+function [dMdt,dMsink,dMremin,dMfrag,dMaggr] = interaxseason(t,M,m,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,Rrate,pfrag,remin_grid)
 % function dMdt = interax(t,M,m,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,remin,Rrate,pfrag)
 
 % Do we calculate dry mass or total(dry+water)?
@@ -7,7 +7,7 @@ function [dMdt,dMsink,dMremin,dMfrag,dMaggr] = interax(t,M,m,bi,bj,Nr,Nd,b300,b3
 M(M<0) = 0;
 
 % Dry mass per particle reference
-m = m(:); 
+m = m(:);
 
 % Number of particles per volume [#/ m3]
 N = M(:)./m(:);
@@ -15,6 +15,7 @@ N = M(:)./m(:);
 % Pre-allocate memory for the aggregation matrix
 dMaggr = zeros(size(M));
 
+t
 
 %% Aggregation
 
@@ -36,9 +37,9 @@ for k = 1:length(bi)
     if dN > 0
         dMaggr(ii) = dMaggr(ii)-dN*mi;
         dMaggr(jj) = dMaggr(jj)-dN*mj;
-        dMaggr(d00) = dMaggr(d00) + f00(k)*dN*mij; 
-        dMaggr(d01) = dMaggr(d01) + f01(k)*dN*mij; 
-        dMaggr(d10) = dMaggr(d10) + f10(k)*dN*mij; 
+        dMaggr(d00) = dMaggr(d00) + f00(k)*dN*mij;
+        dMaggr(d01) = dMaggr(d01) + f01(k)*dN*mij;
+        dMaggr(d10) = dMaggr(d10) + f10(k)*dN*mij;
         dMaggr(d11) = dMaggr(d11) + f11(k)*dN*mij;
     end
 end
@@ -46,21 +47,32 @@ end
 
 %% Degradation
 
-% remin2 = remin .* remin_grid;
+size_remin = size(Rrate);
 
-% # particles
-dNrem = remin(:).*N(:);
-dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1) 
+if size_remin(2) == 1 % it means the remin IS NOT temperature dependent
+   
+    remin = Rrate .* remin_grid;
+
+else
+
+    x = 1:1825; 
+    y = Rrate;
+    Rrate2 = interp1(x, y, t+1);
+    remin = Rrate2 .* remin_grid;
+end
+
+dNrem = remin2(:).*N(:);
+dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1)
 dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end); % fix for bins: 10,20,30... (high density)--> nothing comes in
 dMremin = dNrom(:).*m(:); % go back to dM (mass multiplying by mass per particle)
 dMremin(1:Nd:end) = dMremin(1:Nd:end) - Rrate*M(1:Nd:end);  % ensure remin make mass to leave the system at Z=1 (low density)
 
 
-% mass
-dMrem2 = remin(:) .* M(:);
-dMremin2 = -dMrem2 + [dMrem2(2:end); 0];
-dMremin2(Nd:Nd:end) = -dMrem2(Nd:Nd:end);
-dMremin2(1:Nd:end) = dMremin2(1:Nd:end) - Rrate*M(1:Nd:end);
+% % mass
+% dMrem2 = remin(:) .* M(:);
+% dMremin2 = -dMrem2 + [dMrem2(2:end); 0];
+% dMremin2(Nd:Nd:end) = -dMrem2(Nd:Nd:end);
+% dMremin2(1:Nd:end) = dMremin2(1:Nd:end) - Rrate*M(1:Nd:end);
 
 
 %% Fragmentation
@@ -69,7 +81,7 @@ dMfrag = - pfrag(:).*M(:);
 dMfrag(1:Nd) = 0;
 
 for i  = 1:Nr-1
-    io = 1 + (i-1)*Nd:i*Nd; 
+    io = 1 + (i-1)*Nd:i*Nd;
     for j = i:Nr-1
         jo = 1 + j*Nd:(j+1)*Nd;
         dMfrag(io) = dMfrag(io) - dMfrag(jo)/j;
@@ -84,7 +96,7 @@ dMsink = - M.*w(:)/H;
 
 %% Collecting
 
-dMdt = prod(:) + dMaggr + dMfrag + dMremin + dMsink;
+dMdt = prod(:)*(1-cos(2*pi*t/365))/2 + dMaggr + dMfrag + dMremin + dMsink;
 
 end
 

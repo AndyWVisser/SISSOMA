@@ -1,4 +1,4 @@
-option = 1;
+option = 9;
 
 if option == 1
     % param = d_mean*1E-18*1E9;
