@@ -1,4 +1,4 @@
-function sim = coagfunDev(a,alpha,epsilon,Ptotal,Rrate,Frate,Tmax,seasonal,temp_dependence_remin)
+function sim = coagfunDev(a,alpha,epsilon,Ptotal,Rrate,Frate,Tmax,seasonal,T_input)
 
 arguments
     a double = 2;           % selfsimilarity parameter; typically between 1.8 and 2.0
@@ -8,8 +8,9 @@ arguments
     Rrate double = 0.1;     % remineralization rate [day-1]
     Frate double = 500;     % maximum fragmentation rate [day-1] for aggregates > 1 m
     Tmax double = 5*365;    % period of simulation [days]
-    seasonal logical = 1;   % seasonal (true) or constant (false) production
-    temp_dependence_remin logical = 1; % constant remineralization rate (false) or temperature dependent (true)
+    seasonal logical = 0;   % seasonal (true) or constant (false) production
+    % temp_depend_remin logical = 1; % constant remineralization rate (false) or temperature dependent (true)
+    T_input double = 10;
 end
 
 p.a = a; % self-similarity parameter
@@ -21,9 +22,21 @@ H = 50;     p.H = H;        % [m] depth of mixed layer
 strata = 1; p.strata = strata; % not used
 rMax = 1E6; p.rMax = rMax;  % [µm] maximum radius
 ro = 1 ;  p.ro = ro;  % [µm] min radius
-rho_sw = 1027;  p.rho_sw = rho_sw; % density of seawater [kg m^-3]
-nu = 1E-6;      % [m^2 s^-1] kinematic viscosity of seawater
-mu = nu*rho_sw; % [kg m^-1 s^-1] dynamic viscosity of seawater
+
+% rho_sw = 1027;  p.rho_sw = rho_sw; % density of seawater [kg m^-3]
+% nu = 1E-6;      % [m^2 s^-1] kinematic viscosity of seawater
+% mu = nu*rho_sw; % [kg m^-1 s^-1] dynamic viscosity of seawater
+
+rho_sw = zeros(length(T_input),1);
+nu = zeros(length(T_input),1);
+mu = zeros(length(T_input),1);
+
+for j = 1:length(T_input)
+    rho_sw(j) =  SW_Density(T_input(j), 'C', 35, 'ppt', 3, 'bar');
+    nu(j) = SW_Kviscosity(T_input(j), 'C', 35, 'ppt');
+    mu(j) = nu(j)*rho_sw(j);
+end
+
 kb = 1.38065E-23; % Boltzmann constant [m^2 kg s^-2 K^-1]
 p.Rrate = Rrate; % [day^-1] remineralization rate
 p.Frate = Frate; % [day^-1] maximum fragmentation rate
@@ -159,14 +172,23 @@ pfrag = pfrag*epsilon*epsilon_ref;
 
 %% Remineralization
 
-if temp_dependence_remin == 1 % Make it temperature-dependent:
+Rrate_ref10 = 0.07; % remineralisation rate (1/day) (Serra-Pompei (2022)) @10 degrees
 
+% if temp_depend_remin == 1 % Make it temperature-dependent:
+
+if seasonal == 1
     % daily tmps from TMs (!!! get them from the Transport matrix)
-    T_mat = [10 10 linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) 10 10 10 ]; 
+    % T_mat = [10 10 linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) 10 10 10 ];
+    % T_mat = [10 10 linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) 10 10 10 ];
     Q10 = 2;
-    Rrate_ref10 = 0.07; % remineralisation rate (1/day) (Serra-Pompei (2022)) @10 degrees
-    Rrate = Rrate_ref10 .* fTemp(Q10, T_mat);
+    Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
+
+elseif seasonal == 0
+    Q10 = 2;
+    Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
+
 end
+%end
 
 remin_grid = ((1-q)/(3-a)).*(q.^x_mesh).*(1+z_mesh);
 
@@ -176,15 +198,11 @@ remin_grid = ((1-q)/(3-a)).*(q.^x_mesh).*(1+z_mesh);
 M = zeros(L,1); % [\mug / m^3]
 
 prod = zeros(Nd,Nr);
-prod(1:end,1) = Ptotal/Nd/H;
+prod(1:end,1) = Ptotal/Nd/H; % [\mugC / m^3 / day]
 
-% mdry = phi.*m_mean;
 
-% mdry = v_fun * (d_fun + phi * rho_sw);
-mdry = v_mean .* (d_mean * 1E-9 + phi * rho_sw * 1E-9); % [µm]
+mdry = v_mean .* (d_mean * 1E-9 + phi * rho_sw * 1E-9); % [µm] of a singe aggregate
 
-% t = 0;
-% dM = 0;
 
 %% Time dependent solution
 tic
@@ -194,7 +212,7 @@ if seasonal
     [t,Mo] = ode15s(@interaxseason, [0:Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),Rrate,pfrag(:), remin_grid);
 else
     disp('non-seasonal')
-    [t,Mo] = ode15s(@interax, [0 Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),remin(:),Rrate,pfrag(:));
+    [t,Mo] = ode15s(@interax, [0 Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),Rrate,pfrag(:), remin_grid);
 end
 
 runtime = toc
@@ -205,24 +223,24 @@ for i = 1:length(t)-1
 end
 
 
-%%
+%% Calculations for the last time step
 
 % dry mass per volume in last time step in each size-density bin [µgC/m3]
 Mdry = reshape(Mo(end,:),Nd,Nr);
 
-% flux out of the H=50m mixed layer --> divide /H ???     [µgC/m2/day]
+% flux out of the H=50m mixed layer --> divide /H ???  [µgC/m2/day]
 Flux = Mdry.*w;
 
-%
+% Size integrated flux [µgC/m2/day]
 BFlux = sum(Flux,1);
 
 % number of particles per volume [#/m3]
 N = Mdry./ mdry;
 
 
-%% Calculations for the last time step
+%%
 
-% [dMdto,dMsink,dMremin,dMfrag,dMaggreg] = interax(t,Mdry(:),mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,remin,Rrate,pfrag, remin_grid);
+% [dMdto,dMsink,dMremin,dMfrag,dMaggreg] = interax(t,Mdry(:),mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,Rrate,pfrag, remin_grid);
 
 
 %%
@@ -250,8 +268,9 @@ sim.w = w;
 sim.x = x;
 sim.z = z;
 
-sim.remin = remin;
+sim.Rrate = Rrate;
 sim.remin_grid = remin_grid;
+
 
 
 
