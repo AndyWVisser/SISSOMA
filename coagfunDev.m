@@ -27,6 +27,10 @@ ro = 1 ;  p.ro = ro;  % [µm] min radius
 % nu = 1E-6;      % [m^2 s^-1] kinematic viscosity of seawater
 % mu = nu*rho_sw; % [kg m^-1 s^-1] dynamic viscosity of seawater
 
+if seasonal == 0 && length(T_input) > 1
+    T_input = mean(T_input);
+end 
+
 rho_sw = zeros(length(T_input),1);
 nu = zeros(length(T_input),1);
 mu = zeros(length(T_input),1);
@@ -36,6 +40,10 @@ for j = 1:length(T_input)
     nu(j) = SW_Kviscosity(T_input(j), 'C', 35, 'ppt');
     mu(j) = nu(j)*rho_sw(j);
 end
+
+rho_sw = mean(rho_sw);
+nu = mean(nu);
+mu = mean(mu);
 
 kb = 1.38065E-23; % Boltzmann constant [m^2 kg s^-2 K^-1]
 p.Rrate = Rrate; % [day^-1] remineralization rate
@@ -173,21 +181,25 @@ pfrag = pfrag*epsilon*epsilon_ref;
 %% Remineralization
 
 Rrate_ref10 = 0.07; % remineralisation rate (1/day) (Serra-Pompei (2022)) @10 degrees
+Q10 = 2;
+Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
+
+
 
 % if temp_depend_remin == 1 % Make it temperature-dependent:
 
-if seasonal == 1
-    % daily tmps from TMs (!!! get them from the Transport matrix)
-    % T_mat = [10 10 linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) 10 10 10 ];
-    % T_mat = [10 10 linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) 10 10 10 ];
-    Q10 = 2;
-    Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
-
-elseif seasonal == 0
-    Q10 = 2;
-    Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
-
-end
+% if seasonal == 1
+%     % daily tmps from TMs (!!! get them from the Transport matrix)
+%     % T_mat = [10 10 linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) linspace(10,17,182) linspace(17,10,182) 10 10 10 ];
+%     % T_mat = [10 10 linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) 10 10 10 ];
+%     Q10 = 2;
+%     Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
+% 
+% elseif seasonal == 0
+%     Q10 = 2;
+%     Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
+% 
+% end
 %end
 
 remin_grid = ((1-q)/(3-a)).*(q.^x_mesh).*(1+z_mesh);

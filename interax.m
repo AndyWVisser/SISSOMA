@@ -51,10 +51,10 @@ remin = Rrate .* remin_grid;
 
 
 % 1. # particles
-% dNrem = remin(:).*N(:);
-% dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1) 
-% dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end); % fix for bins: 10,20,30... (high density)--> nothing comes in
-% dMremin = dNrom(:).*m(:); % go back to dM (mass multiplying by mass per particle)
+dNrem = remin(:).*N(:);
+dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1) 
+dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end); % fix for bins: 10,20,30... (high density)--> nothing comes in
+dMremin = dNrom(:).*m(:); % go back to dM (mass multiplying by mass per particle)
 
 
 % old to be deleted??:
@@ -66,13 +66,9 @@ remin = Rrate .* remin_grid;
 
 
 % 3. mass full
-dMrem = remin(:) .* M(:);
-dMremin = -dMrem + [dMrem(2:end); 0];
-dMremin(Nd:Nd:end) = -dMrem(Nd:Nd:end);
-
-
-
-% dMremin2(1:Nd:end) = dMremin2(1:Nd:end) - Rrate*M(1:Nd:end);
+% dMrem = remin(:) .* M(:);
+% dMremin = -dMrem + [dMrem(2:end); 0];
+% dMremin(Nd:Nd:end) = -dMrem(Nd:Nd:end);
 
 
 %% Fragmentation
