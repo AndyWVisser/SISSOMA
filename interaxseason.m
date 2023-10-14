@@ -51,7 +51,8 @@ size_Rate = size(Rrate);
 
 if size_Rate(2) == 1 % it means the remin IS NOT temperature dependent -- constant
    
-    remin = Rrate .* remin_grid;
+    Rrate2 = Rrate;
+    remin = Rrate2 .* remin_grid;
 
 else
 
@@ -65,7 +66,7 @@ dNrem = remin(:).*N(:);
 dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1)
 dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end); % fix for bins: 10,20,30... (high density)--> nothing comes in
 dMremin = dNrom(:).*m(:); % go back to dM (mass multiplying by mass per particle)
-dMremin(1:Nd:end) = dMremin(1:Nd:end) - Rrate*M(1:Nd:end);  % ensure remin make mass to leave the system at Z=1 (low density)
+dMremin(1:Nd:end) = dMremin(1:Nd:end) - Rrate2*M(1:Nd:end);  % ensure remin make mass to leave the system at Z=1 (low density)
 
 
 % % mass

@@ -1,4 +1,4 @@
-function [dMdt,dMsink,dMremin,dMfrag,dMaggr] = interax(t,M,m,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,remin,Rrate,pfrag, remin_grid)
+function [dMdt,dMsink,dMremin,dMfrag,dMaggr] = interax(t,M,m,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,Rrate,pfrag, remin_grid)
 % function dMdt = interax(t,M,m,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,remin,Rrate,pfrag)
 
 % Do we calculate dry mass or total(dry+water)?
@@ -44,23 +44,35 @@ for k = 1:length(bi)
 end
 
 
-%% Degradation
+%% Remineralization
 
 % remin2 = remin .* remin_grid;
-
-% # particles
-dNrem = remin(:).*N(:);
-dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1) 
-dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end); % fix for bins: 10,20,30... (high density)--> nothing comes in
-dMremin = dNrom(:).*m(:); % go back to dM (mass multiplying by mass per particle)
-dMremin(1:Nd:end) = dMremin(1:Nd:end) - Rrate*M(1:Nd:end);  % ensure remin make mass to leave the system at Z=1 (low density)
+remin = Rrate .* remin_grid;
 
 
-% mass
-dMrem2 = remin(:) .* M(:);
-dMremin2 = -dMrem2 + [dMrem2(2:end); 0];
-dMremin2(Nd:Nd:end) = -dMrem2(Nd:Nd:end);
-dMremin2(1:Nd:end) = dMremin2(1:Nd:end) - Rrate*M(1:Nd:end);
+% 1. # particles
+% dNrem = remin(:).*N(:);
+% dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1) 
+% dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end); % fix for bins: 10,20,30... (high density)--> nothing comes in
+% dMremin = dNrom(:).*m(:); % go back to dM (mass multiplying by mass per particle)
+
+
+% old to be deleted??:
+% dMremin(1:Nd:end) = dMremin(1:Nd:end) - Rrate*M(1:Nd:end);  % ensure remin make mass to leave the system at Z=1 (low density)
+
+
+% 2. mass simple:
+% dMremin = -remin(:) .*M;
+
+
+% 3. mass full
+dMrem = remin(:) .* M(:);
+dMremin = -dMrem + [dMrem(2:end); 0];
+dMremin(Nd:Nd:end) = -dMrem(Nd:Nd:end);
+
+
+
+% dMremin2(1:Nd:end) = dMremin2(1:Nd:end) - Rrate*M(1:Nd:end);
 
 
 %% Fragmentation
