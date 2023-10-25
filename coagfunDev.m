@@ -5,6 +5,7 @@ arguments
     alpha double = 0.4      % stickiness; range 0 to 1
     epsilon double = 1E-6;  % turbulent dissipation rate [m3/s2]
     Ptotal double = 1E6;    % total productivity; typically 1E6 [µg m-2 day-1] (1 gC m-2 day-1)
+    % Ptotal double = 0.03*1E3*50;    % total productivity; typically 1E6 [µg m-2 day-1] (1 gC m-2 day-1)
     Rrate double = 0.1;     % remineralization rate [day-1]
     Frate double = 500;     % maximum fragmentation rate [day-1] for aggregates > 1 m
     Tmax double = 5*365;    % period of simulation [days]
@@ -20,8 +21,12 @@ p.Ptotal = Ptotal; % [µg C m^2 day^-1] %
 p.seasonal = seasonal;
 H = 50;     p.H = H;        % [m] depth of mixed layer
 strata = 1; p.strata = strata; % not used
+
+% rMax = 1E6; p.rMax = rMax;  % [µm] maximum radius
+% ro = 1 ;  p.ro = ro;  % [µm] min radius
 rMax = 1E6; p.rMax = rMax;  % [µm] maximum radius
-ro = 1 ;  p.ro = ro;  % [µm] min radius
+ro = 1;  p.ro = ro;  % [µm] min radius
+
 
 % rho_sw = 1027;  p.rho_sw = rho_sw; % density of seawater [kg m^-3]
 % nu = 1E-6;      % [m^2 s^-1] kinematic viscosity of seawater
@@ -141,8 +146,8 @@ Re = 2.*r_m.*w_tmp./nu;
 Cd = 24./Re + 6./(1+Re.^0.5) + 0.4;
 w_it = sqrt((8*r_m.*9.81.*d_mean)./(3*rho_sw.*Cd)); % [m/s]
 tick = 0;
-while max(w_tmp./w_it,[],'all')>1 %iterate until converged (within 0.5-2 times the previous)
-    w_tmp =w_it;
+while max(w_tmp./w_it,[],'all')>1 % iterate until converged (within 0.5-2 times the previous)
+    w_tmp = w_it;
     Re = 2.*r_m.*w_tmp./nu;
     Cd = 24./Re + 6./(1+Re.^0.5) + 0.4;
     w_it = sqrt((8*r_m.*9.81.*d_mean)./(3*rho_sw.*Cd)); % [m/s]
@@ -172,10 +177,18 @@ phi = delta.^((a-3)*x_mesh); % phi == 1 - porosity (i.e. dry mass volume fractio
 
 
 %% Fragmentation rate [1/day]
-f_fun = @(x,z) (delta.^x/(delta^(Nr-1))); % proportional to r
-pfrag = Frate*f_fun(x_mesh,z_mesh).*(1-phi);
+
+% Old 
+% f_fun = @(x,z) (delta.^x/(delta^(Nr-1))); % proportional to r
+% pfrag = Frate*f_fun(x_mesh,z_mesh).*(1-phi);
+% pfrag = pfrag*epsilon*epsilon_ref;
+
+
+% New
+f_fun = @(x) delta.^x.*1E-6; % proportional to r
+pfrag = Frate*f_fun(x_mesh).*(1-phi); % proportional to porosity
 pfrag = pfrag*epsilon*epsilon_ref;
-% dfrag = 0.5;
+
 
 
 %% Remineralization
@@ -183,7 +196,6 @@ pfrag = pfrag*epsilon*epsilon_ref;
 Rrate_ref10 = 0.07; % remineralisation rate (1/day) (Serra-Pompei (2022)) @10 degrees
 Q10 = 2;
 Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
-
 
 
 % if temp_depend_remin == 1 % Make it temperature-dependent:
@@ -252,7 +264,10 @@ N = Mdry./ mdry;
 
 %%
 
+
 % [dMdto,dMsink,dMremin,dMfrag,dMaggreg] = interax(t,Mdry(:),mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,Rrate,pfrag, remin_grid);
+
+% [dMdto,dMsink,dMremin,dMfrag,dMaggreg] = interaxseason(t,Mdry(:),mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,Rrate,pfrag, remin_grid);
 
 
 %%
@@ -283,6 +298,7 @@ sim.z = z;
 sim.Rrate = Rrate;
 sim.remin_grid = remin_grid;
 
+sim.r_mean = r_mean;
 
 
 

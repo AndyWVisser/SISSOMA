@@ -49,7 +49,7 @@ end
 
 size_Rate = size(Rrate);
 
-if size_Rate(2) == 1 % it means the remin IS NOT temperature dependent -- constant
+if size_Rate(2) == 1 % it means the remin is based only on one temperatue
    
     Rrate2 = Rrate;
     remin = Rrate2 .* remin_grid;
