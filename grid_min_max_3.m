@@ -1,9 +1,107 @@
-function sim = coagfunDev(a,alpha,epsilon,Ptotal,Rrate,Frate,Tmax,seasonal,T_input)
+rmins = [1 1];
+rmaxs = [1E5 1E6];
+
+for i = 1:length(rmins)
+
+    a = 2;           % selfsimilarity parameter; typically between 1.8 and 2.0
+    alpha = 0.4;     % stickiness; range 0 to 1
+    epsilon = 1E-6;  % turbulent dissipation rate [m3/s2]
+    Ptotal = 1E6;    % total productivity; typically 1E6 [µg m-2 day-1] (1 gC m-2 day-1)
+    Rrate = 0.1;     % remineralization rate [day-1]
+    Frate = 500;     % maximum fragmentation rate [day-1] for aggregates > 1 m
+    Tmax = 5*365;    % period of simulation [days]
+    seasonal = 1;   % seasonal (true) or constant (false) production
+
+    lowlim = 15;
+    uplim = 20;
+
+    rMax = rmaxs(i);
+    ro = rmins(i);
+
+    T_input = 10;
+
+    [r_mean, d_mean, v_mean, m_mean, w, pfrag, remin, phi] = compareFUN(a,alpha,epsilon,Ptotal,Rrate,Frate,Tmax,seasonal,T_input,ro,rMax);
+
+    r_mean2(i,:) = r_mean;
+    d_mean2(i,:,:) = d_mean;
+    m_mean2(i,:,:) = m_mean;
+    w2(i,:,:) = w;
+    pfrag2(i,:,:) = pfrag;
+    remin2(i,:,:) = remin;
+    phi2(i,:,:) = phi;
+
+
+end
+
+%%
+col = {[0 0.4470 0.7410], [0.8500 0.3250 0.0980], [0.9290 0.6940 0.1250], [0.4940 0.1840 0.5560], [0.4660 0.6740 0.1880], [0.3010 0.7450 0.9330], [0.3010 0.7450 0.1330], [0.1010 0.2450 0.9330], [0.7010 0.1450 0.9330], [0.3010 0.7450 0.1330] };
+
+param = {d_mean2, w2, pfrag2, remin2, phi2};
+tit = {'excess density', 'sinking speed', 'fragmentation', 'remineralization', 'phi'};
+
+% 
+for j = 1:length(param)
+    
+    figure
+    for i = 1:10
+        loglog(squeeze(r_mean2(1,:,:)), squeeze(param{j}(1,i,:)), '.-', 'Color', col{i}, 'Linewidth', 0.5)
+        hold on
+        loglog(squeeze(r_mean2(2,:,:)), squeeze(param{j}(2,i,:)), '--', 'Color', col{i}, 'Linewidth', 1)
+
+    end
+
+    title(tit{j})
+    hold off
+    xlabel('radius [\mum]')
+    ylabel('rate [1/day]')
+end
+
+
+%%
+
+interp1(squeeze(r_mean2(2,:,:)), squeeze(param{4}(2,i,:)), 10)
+interp1(squeeze(r_mean2(2,:,:)), squeeze(param{4}(1,i,:)), 10)
+
+%%
+Nr = 1:30;
+Nd = 1:10;
+
+figure
+imagesc(remin2, Nd, squeeze(d_mean2(2,:,:))./squeeze(d_mean2(1,:,:))); colorbar; title('excess density'); axis xy
+
+figure
+imagesc(Nr, Nd, squeeze(m_mean2(2,:,:))./squeeze(m_mean2(1,:,:))); colorbar; title('total mass'); axis xy
+
+figure
+imagesc(Nr, Nd, squeeze(w2(2,:,:))./squeeze(w2(1,:,:))); colorbar; title('sinking speed'); axis xy
+
+figure
+imagesc(Nr, Nd, squeeze(pfrag2(2,:,:))./squeeze(pfrag2(1,:,:))); colorbar; title('fragmentation rate'); axis xy
+
+figure
+imagesc(Nr, Nd, squeeze(remin2(2,:,:))./squeeze(remin2(1,:,:))); colorbar; title('remineralization rate'); axis xy
+
+%%
+figure
+semilogx(squeeze(r_mean2(2,:,:)), ones(1,30), 'o', 'Linewidth', 1.2); title('size grid');
+hold on
+semilogx(squeeze(r_mean2(1,:,:)), ones(1,30), 'x', 'Linewidth', 1.2); title('size grid');
+
+%%
+figure
+imagesc(Nr, Nd, squeeze(phi2(2,:,:))./squeeze(phi2(1,:,:))); colorbar; title('phi'); axis xy
+
+
+
+%%
+
+
+function [r_mean, d_mean, v_mean, m_mean, w, pfrag, remin, phi] = compareFUN(a,alpha,epsilon,Ptotal,Rrate,Frate,Tmax,seasonal,T_input, r0, r_max)
 
 arguments
     a double = 2;           % selfsimilarity parameter; typically between 1.8 and 2.0
     alpha double = 0.4      % stickiness; range 0 to 1
-    epsilon double = 1E-6;  % turbulent dissipation rate [m2/s3]
+    epsilon double = 1E-6;  % turbulent dissipation rate [m3/s2]
     Ptotal double = 1E6;    % total productivity; typically 1E6 [µg m-2 day-1] (1 gC m-2 day-1)
     % Ptotal double = 0.03*1E3*50;    % total productivity; typically 1E6 [µg m-2 day-1] (1 gC m-2 day-1)
     Rrate double = 0.1;     % remineralization rate [day-1]
@@ -12,20 +110,22 @@ arguments
     seasonal logical = 0;   % seasonal (true) or constant (false) production
     % temp_depend_remin logical = 1; % constant remineralization rate (false) or temperature dependent (true)
     T_input double = 10;
+    r0 double =[];
+    r_max double =[];
 end
 
 p.a = a; % self-similarity parameter
 p.alpha = alpha; % stickiness
 p.epsilon = epsilon; % [m^2 s^-3] % energy dissipation rate
-p.Ptotal = Ptotal; % [µg C m^2 day^-1] 
+p.Ptotal = Ptotal; % [µg C m^2 day^-1] %
 p.seasonal = seasonal;
-H = 50;     p.H = H; % [m] depth of mixed layer
+H = 50;     p.H = H;        % [m] depth of mixed layer
 strata = 1; p.strata = strata; % not used
 
 % rMax = 1E6; p.rMax = rMax;  % [µm] maximum radius
 % ro = 1 ;  p.ro = ro;  % [µm] min radius
-rMax = 1E6; p.rMax = rMax;  % [µm] maximum radius
-ro = 1;  p.ro = ro;  % [µm] min radius
+rMax = r_max; p.rMax = rMax;  % [µm] maximum radius
+ro = r0;  p.ro = ro;  % [µm] min radius
 
 
 % rho_sw = 1027;  p.rho_sw = rho_sw; % density of seawater [kg m^-3]
@@ -34,7 +134,7 @@ ro = 1;  p.ro = ro;  % [µm] min radius
 
 if seasonal == 0 && length(T_input) > 1
     T_input = mean(T_input);
-end 
+end
 
 rho_sw = zeros(length(T_input),1);
 nu = zeros(length(T_input),1);
@@ -55,17 +155,11 @@ p.Rrate = Rrate; % [day^-1] remineralization rate
 p.Frate = Frate; % [day^-1] maximum fragmentation rate
 epsilon_ref = 1E6; p.epsilon_ref = epsilon_ref; % ?????? [s2/m3]
 
-
-rfactor = 0.1; p.rfactor = rfactor; % [day^-1] remineralization rate 
-MtoC = 2.5; % dry mass to dry mass carbon ratio [µg µgC-1]
-
-
 %% grid and combination variables
 Nr = 30; p.Nr = Nr; %number of size bins
 Nd = 10; p.Nd = Nd; %number of density bins
 
 delta = exp(log(rMax/ro)/(Nr-1));  p.delta = delta;   % logrithmic size interval
-lambda = exp(log(rhom/rhoo)/(Nd-1)); p.lambda = lambda;   % logrithmic density interval
 drho = 0.2*rho_sw/(Nd-1);          p.drho = drho;     % density interval
 q = delta^(p.a-3);
 
@@ -190,28 +284,25 @@ phi = delta.^((a-3)*x_mesh); % phi == 1 - porosity (i.e. dry mass volume fractio
 % pfrag = pfrag*epsilon*epsilon_ref;
 
 
+
+
+% f_fun = @(x,z) (delta.^x/(delta^(Nr-1))); % proportional to r
+% f_fun = @(x,z) delta.^x.*1E-6; % proportional to r
+% pfrag = f_fun(x_mesh,z_mesh);
+
+
+
 % New
-% f_fun = @(x) delta.^x.*1E-6; % proportional to r
-% pfrag = Frate*f_fun(x_mesh,z_mesh).*(1-phi); % proportional to porosity
-% pfrag = pfrag*epsilon*epsilon_ref;
-
-% Andy
-f_fun = @(x) (ro*delta.^x/1E4).^3; % propostional to volume
-pfrag = f_fun(x_mesh).*(1-phi); % proportional to porosity
+f_fun = @(x) delta.^x.*1E-6; % proportional to r
+pfrag = Frate*f_fun(x_mesh).*(1-phi);
 pfrag = pfrag*epsilon*epsilon_ref;
-
 
 %% Remineralization
 
-% Old 
-% Rrate_ref10 = 0.07; % remineralisation rate (1/day) (Serra-Pompei (2022)) @10 degrees
-% Q10 = 2;
-% Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
-
-% Andy 
 Rrate_ref10 = 0.07; % remineralisation rate (1/day) (Serra-Pompei (2022)) @10 degrees
 Q10 = 2;
-Rrate = Rrate_ref10 .* fTemp(Q10, T_input) ./log(lambda);
+Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
+
 
 
 % if temp_depend_remin == 1 % Make it temperature-dependent:
@@ -222,16 +313,17 @@ Rrate = Rrate_ref10 .* fTemp(Q10, T_input) ./log(lambda);
 %     % T_mat = [10 10 linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) linspace(10,20,182) linspace(20,10,182) 10 10 10 ];
 %     Q10 = 2;
 %     Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
-% 
+%
 % elseif seasonal == 0
 %     Q10 = 2;
 %     Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
-% 
+%
 % end
 %end
 
-% remin_grid = ((1-q)/(3-a)).*(q.^x_mesh).*(1+z_mesh);
-remin_grid = ones(size(x_mesh));
+remin_grid = ((1-q)/(3-a)).*(q.^x_mesh).*(1+z_mesh);
+
+remin = Rrate.*remin_grid;
 
 
 %% Interactions
@@ -245,156 +337,10 @@ prod(1:end,1) = Ptotal/Nd/H; % [\mugC / m^3 / day]
 mdry = v_mean .* (d_mean * 1E-9 + phi * rho_sw * 1E-9); % [µm] of a singe aggregate
 
 
-%% Time dependent solution
-tic
-options = odeset('NonNegative',1:length(M(:)));
-if seasonal
-    disp('seasonal')
-    [t,Mo] = ode15s(@interaxseason, [1:Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),Rrate,pfrag(:), remin_grid);
-else
-    disp('non-seasonal')
-    [t,Mo] = ode15s(@interax, [0 Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),Rrate,pfrag(:), remin_grid);
+
+
 end
 
-runtime = toc
-
-RMSE = 0;
-for i = 1:length(t)-1
-    RMSE(i) = rms((Mo(i+1,:)-Mo(i,:)));
-end
-
-
-%% Calculations for the last time step
-
-% dry mass per volume in last time step in each size-density bin [µgC/m3]
-Mdry = reshape(Mo(end,:),Nd,Nr);
-
-% flux out of the H=50m mixed layer [µgC/m2/day]
-Flux = Mdry.*w;
-
-% Size integrated flux [µgC/m2/day]
-BFlux = sum(Flux,1);
-
-% number of particles per volume [#/m3]
-N = Mdry./ mdry;
-
-
-%%
-
-
-% [dMdto,dMsink,dMremin,dMfrag,dMaggreg] = interax(t,Mdry(:),mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,Rrate,pfrag, remin_grid);
-
-% [dMdto,dMsink,dMremin,dMfrag,dMaggreg] = interaxseason(t,Mdry(:),mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,Rrate,pfrag, remin_grid);
-
-
-%%
-sim.p = p;
-sim.prod = prod;
-sim.t = t;
-sim.Nd = Nd;
-sim.Nr = Nr;
-
-sim.RMSE = RMSE;
-sim.Mo = Mo;
-sim.Mdry = Mdry;
-sim.Flux = Flux;
-sim.BFlux = BFlux;
-sim.N = N;
-sim.mdry = mdry;
-
-% sim.dMdto = dMdto;
-% sim.dMsink = dMsink;
-% sim.dMremin = dMremin;
-% sim.dMfrag = dMfrag;
-% sim.dMaggreg= dMaggreg ;
-
-sim.w = w;
-
-sim.x = x;
-sim.z = z;
-
-sim.Rrate = Rrate;
-sim.remin_grid = remin_grid;
-
-sim.r_mean = r_mean;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-% figure(1); clf;
-% subplot(2,2,1); imagesc(x,z,Mdry); colorbar;  title('dry mass'); axis xy
-% subplot(2,2,2); imagesc(x,z,Flux); colorbar; title('flux'); axis xy
-% subplot(2,2,4); semilogy(t(2:end),RMSE,'.'); title('root mean error');
-% subplot(2,2,3); plot(x+.5,BFlux,'o'); title('size integrated flux');
-%
-% [dMdto,dMsink,dMremin,dMfrag] = interax(t,Mdry(:),mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod,remin,Rrate,pfrag);
-%
-% sim.prod = prod;
-% sim.M = Mdry;
-% sim.Flux = Flux;
-% sim.dMdto = dMdto;
-% sim.dMsink = dMsink;
-% sim.dMremin = dMremin;
-% sim.dMfrag = dMfrag;
-% sim.RMSE = rms(dM(end,:)-dM(end-1,:));
-% sim.w = w;
-% sim.N = N;
-% sim.m = m;
-% sim.phi = phi;
-% sim.frag = pfrag;
-% sim.remin = remin;
-% sim.d = d_mean;
-% sim.r = r_mean;
-% sim.v = v_mean;
-% sim.e = e_mean;
-% sim.t = t;
-% sim.dM = dM;
-% sim.p = p;
-% sim.x = x;
-% sim.z = z;
-%
-% figure(2); clf;
-% subplot(3,2,1); imagesc(x,z,reshape(dMdto,Nd,Nr)); colorbar; title('dMdt'); axis xy;
-% subplot(3,2,2); imagesc(x,z,reshape(dMsink,Nd,Nr)); colorbar; title('sinking'); axis xy;
-% subplot(3,2,4); imagesc(x,z,reshape(dMremin,Nd,Nr)); colorbar; title('remineralization'); axis xy;
-% subplot(3,2,3); imagesc(x,z,reshape(dMfrag,Nd,Nr)); colorbar; title('fragmentation'); axis xy;
-% subplot(3,2,5); imagesc(x,z,prod); colorbar; title('production'); axis xy;
-% %%
-% figure(3); clf;
-% subplot(6,1,1); imagesc(x,z,reshape(dMdto,Nd,Nr)); colorbar; title('dMdt'); axis xy;
-% dM = dMdto - prod(:) - dMsink - dMremin - dMfrag;
-% subplot(6,1,2); imagesc(x,z,reshape(dM,Nd,Nr)); colorbar; title('aggregation'); axis xy;
-% subplot(6,1,3); imagesc(x,z,reshape(dMsink,Nd,Nr)); colorbar; title('sinking'); axis xy;
-% subplot(6,1,4); imagesc(x,z,reshape(dMremin,Nd,Nr)); colorbar; title('remineralization'); axis xy;
-% subplot(6,1,5); imagesc(x,z,reshape(dMfrag,Nd,Nr)); colorbar; title('fragmentation'); axis xy;
-% subplot(6,1,6); imagesc(x,z,prod); colorbar; title('production'); axis xy;
-end
 
 
 

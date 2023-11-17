@@ -22,7 +22,7 @@ T_input = 10;
 % To use the Temperature sesonality --> make sure to follow the productivity pattern!!!
 % T0 = 10;
 % tt = 1:Tmax;
-% T_input = T0*(3-cos(2*pi*tt/365))/3;
+% T_input = T0*(3-cos(2*pi*tt/365))/3; % !!!!!!!
 % -------------------------------------
 % T_input = [lowlim lowlim linspace(lowlim,uplim,182) linspace(uplim,lowlim,182) linspace(lowlim,uplim,182) linspace(uplim,lowlim,182) linspace(lowlim,uplim,182) linspace(uplim,lowlim,182) linspace(lowlim,uplim,182) linspace(uplim,lowlim,182) linspace(lowlim,uplim,182) linspace(uplim,lowlim,182) lowlim lowlim lowlim ];
 
