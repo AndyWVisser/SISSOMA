@@ -50,13 +50,13 @@ end
 size_Rate = size(Rrate);
 
 if size_Rate(2) == 1 % it means the remin is based only on one temperatue
-   
+
     Rrate2 = Rrate;
     remin = Rrate2 .* remin_grid;
 
 else
 
-    x = 1:1825; % SOS!!
+    x = 1:length(Rrate);
     y = Rrate;
     Rrate2 = interp1(x, y, t+1);
     remin = Rrate2 .* remin_grid;
@@ -65,7 +65,7 @@ end
 
 % 1. # particles
 dNrem = remin(:).*N(:);
-dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1) 
+dNrom = -dNrem + [dNrem(2:end); 0]; % the last part corresponds to a shift of 1 to have the Z+1 * N(Z+1)
 dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end); % fix for bins: 10,20,30... (high density)--> nothing comes in
 dMremin = dNrom(:).*m(:); % go back to dM (mass multiplying by mass per particle)
 
@@ -86,7 +86,7 @@ dMremin = dNrom(:).*m(:); % go back to dM (mass multiplying by mass per particle
 
 %% Fragmentation
 
-dMfrag = - pfrag(:).*M(:);
+dMfrag = -pfrag(:).*M(:);
 dMfrag(1:Nd) = 0;
 
 for i  = 1:Nr-1
@@ -100,12 +100,32 @@ end
 
 %% Sinking
 
-dMsink = - M.*w(:)/H;
+dMsink = -M.*w(:)/H;
 
 
 %% Collecting
 
-dMdt = prod(:)*(1-cos(2*pi*t/365))/2 + dMaggr + dMfrag + dMremin + dMsink;
+% dMdt = prod(:)*(1-cos(2*pi*t/365))/2 + dMaggr + dMfrag + dMremin + dMsink;
+
+fseas = (1-cos(2*pi*t/365))/2.5 + 0.2; % (1-cos(2*pi*t/365))/3 + 0.35; % ((1-cos(2*pi*t/365))/4 + 0.5); % ((1-cos(2*pi*t/365))/2)+1E-6; % to avoid 0 values when normalizing
+dMdt = prod(:)*fseas + dMaggr + dMfrag + dMremin + dMsink;
+
+
+
+% if t>=730
+%     % in_out = sum(prod(:)*fseas) ./ sum((-dMremin -dMsink));
+%     in2 = sum(prod(:)*fseas);
+%     out2 = sum((-dMremin -dMsink));
+%     % plot(t,in_out,'-')
+%     hold on
+%     plot(t,in2,'o', 'Color', [0.4 0.6 0.7 1])
+%     plot(t,out2,'x', 'Color', [0.678 0.286 0.286 1])
+%     % plot(t,in_out, '+')
+%     xlabel('Time [days]')
+%     ylabel('[mugC/ m3/ day]')
+%     % legend('in', 'outs', 'in-outs')
+%     ylim([0 inf])
+% end
 
 end
 

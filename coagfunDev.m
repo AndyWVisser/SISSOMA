@@ -3,7 +3,7 @@ function sim = coagfunDev(a,alpha,epsilon,Ptotal,Rrate,Frate,Tmax,seasonal,T_inp
 arguments
     a double = 2;           % selfsimilarity parameter; typically between 1.8 and 2.0
     alpha double = 0.4      % stickiness; range 0 to 1
-    epsilon double = 1E-6;  % turbulent dissipation rate [m3/s2]
+    epsilon double = 1E-6;  % turbulent dissipation rate [m2/s3]
     Ptotal double = 1E6;    % total productivity; typically 1E6 [µg m-2 day-1] (1 gC m-2 day-1)
     % Ptotal double = 0.03*1E3*50;    % total productivity; typically 1E6 [µg m-2 day-1] (1 gC m-2 day-1)
     Rrate double = 0.1;     % remineralization rate [day-1]
@@ -17,9 +17,9 @@ end
 p.a = a; % self-similarity parameter
 p.alpha = alpha; % stickiness
 p.epsilon = epsilon; % [m^2 s^-3] % energy dissipation rate
-p.Ptotal = Ptotal; % [µg C m^2 day^-1] %
+p.Ptotal = Ptotal; % [µg C m^2 day^-1] 
 p.seasonal = seasonal;
-H = 50;     p.H = H;        % [m] depth of mixed layer
+H = 50;     p.H = H; % [m] depth of mixed layer
 strata = 1; p.strata = strata; % not used
 
 % rMax = 1E6; p.rMax = rMax;  % [µm] maximum radius
@@ -233,7 +233,7 @@ tic
 options = odeset('NonNegative',1:length(M(:)));
 if seasonal
     disp('seasonal')
-    [t,Mo] = ode15s(@interaxseason, [0:Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),Rrate,pfrag(:), remin_grid);
+    [t,Mo] = ode15s(@interaxseason, [1:Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),Rrate,pfrag(:), remin_grid);
 else
     disp('non-seasonal')
     [t,Mo] = ode15s(@interax, [0 Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),Rrate,pfrag(:), remin_grid);
@@ -252,7 +252,7 @@ end
 % dry mass per volume in last time step in each size-density bin [µgC/m3]
 Mdry = reshape(Mo(end,:),Nd,Nr);
 
-% flux out of the H=50m mixed layer --> divide /H ???  [µgC/m2/day]
+% flux out of the H=50m mixed layer [µgC/m2/day]
 Flux = Mdry.*w;
 
 % Size integrated flux [µgC/m2/day]
@@ -283,6 +283,7 @@ sim.Mdry = Mdry;
 sim.Flux = Flux;
 sim.BFlux = BFlux;
 sim.N = N;
+sim.mdry = mdry;
 
 % sim.dMdto = dMdto;
 % sim.dMsink = dMsink;
