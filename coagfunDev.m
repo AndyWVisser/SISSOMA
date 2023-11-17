@@ -191,27 +191,27 @@ phi = delta.^((a-3)*x_mesh); % phi == 1 - porosity (i.e. dry mass volume fractio
 
 
 % New
-% f_fun = @(x) delta.^x.*1E-6; % proportional to r
-% pfrag = Frate*f_fun(x_mesh,z_mesh).*(1-phi); % proportional to porosity
-% pfrag = pfrag*epsilon*epsilon_ref;
+f_fun = @(x) delta.^x.*1E-6; % proportional to r
+pfrag = Frate*f_fun(x_mesh,z_mesh).*(1-phi); % proportional to porosity
+pfrag = pfrag*epsilon*epsilon_ref;
 
 % Andy
-f_fun = @(x) (ro*delta.^x/1E4).^3; % propostional to volume
-pfrag = f_fun(x_mesh).*(1-phi); % proportional to porosity
-pfrag = pfrag*epsilon*epsilon_ref;
+% f_fun = @(x) (ro*delta.^x/1E4).^3; % propostional to volume
+% pfrag = f_fun(x_mesh).*(1-phi); % proportional to porosity
+% pfrag = pfrag*epsilon*epsilon_ref;
 
 
 %% Remineralization
 
 % Old 
-% Rrate_ref10 = 0.07; % remineralisation rate (1/day) (Serra-Pompei (2022)) @10 degrees
-% Q10 = 2;
-% Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
-
-% Andy 
 Rrate_ref10 = 0.07; % remineralisation rate (1/day) (Serra-Pompei (2022)) @10 degrees
 Q10 = 2;
-Rrate = Rrate_ref10 .* fTemp(Q10, T_input) ./log(lambda);
+Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
+
+% Andy 
+% Rrate_ref10 = 0.07; % remineralisation rate (1/day) (Serra-Pompei (2022)) @10 degrees
+% Q10 = 2;
+% Rrate = Rrate_ref10 .* fTemp(Q10, T_input) ./log(lambda);
 
 
 % if temp_depend_remin == 1 % Make it temperature-dependent:
