@@ -230,8 +230,8 @@ Rrate = Rrate_ref10 .* fTemp(Q10, T_input);
 % end
 %end
 
-% remin_grid = ((1-q)/(3-a)).*(q.^x_mesh).*(1+z_mesh);
-remin_grid = ones(size(x_mesh));
+remin_grid = ((1-q)/(3-a)).*(q.^x_mesh).*(1+z_mesh);
+% remin_grid = ones(size(x_mesh));
 
 
 %% Interactions
