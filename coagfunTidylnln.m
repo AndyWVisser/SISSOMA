@@ -5,8 +5,8 @@ arguments
     alpha double = 0.3      % stickiness; range 0 to 1
     epsilon double = 1E-6;  % turbulent dissipation rate [m3/s2]
     Ptotal double = 1E6;    % total productivity; typically 1E6 [µg m-2 day-1] (1 gC m-2 day-1)  
-    Tmax double = 2000;     % period of simulation [days]
-    seasonal logical = 0;   % seasonal (1) or constant (0) production
+    Tmax double = 5*365;     % period of simulation [days]
+    seasonal logical = 1;   % seasonal (1) or constant (0) production
 end
 
 disp(['a = ',num2str(a,2), ' alpha = ',num2str(alpha,2), ' epsilon = ',num2str(epsilon,2),...
@@ -15,13 +15,16 @@ disp(['a = ',num2str(a,2), ' alpha = ',num2str(alpha,2), ' epsilon = ',num2str(e
 p.a = a; % self-similarity parameter
 p.alpha = alpha; % stickiness
 p.epsilon = epsilon; % [m^2 s^-3] % energy dissipation rate 
+epsilon_crit = 1E-6; % [m^2 s^-3] % energy dissipation rate
 p.Ptotal = Ptotal; % [µg C m^2 day^-1] % 
 p.seasonal = seasonal;
 
+Frate = 0.5; p.Frate = Frate; % maximum fragmentation rate [day-1] for aggregates > r_crit
 H = 20;     p.H = H;        %[m] depth of mixed layer
 
 rMax = 1E6; p.rMax = rMax;  % [µm] maximum radius
 ro = 1 ;  p.ro = ro;  %[µm] min radius
+r_crit = 1E4; %[µm]
 
 rho_sw = 1027;  p.rho_sw = rho_sw; % density of seawater [kg m^-3]
 rhoo = 1;   % minimum aggregate density at r = ro [kg m^-3]
@@ -31,7 +34,7 @@ nu = 1E-6;      % [m^2 s^-1] kinematic viscosity of seawater
 mu = nu*rho_sw; % [kg m^-1 s^-1] dynamic viscosity of seawater
 kb = 1.38065E-23; %Boltzmann constant [m^2 kg s^-2 K^-1]
 
-rfactor = 0.1; p.rfactor = rfactor; % [day^-1] remineralization rate 
+rfactor = 0.02; % 0.1; p.rfactor = rfactor; % [day^-1] remineralization rate 
 MtoC = 2.5; % dry mass to dry mass carbon ratio [µg µgC-1]
 
 
@@ -48,7 +51,6 @@ q = delta^(p.a-3);
 L = Nr*Nd;      % number of bins: b index [0, 1, ..., L-1]
 K = (L+1)*L/2;  % number of combos: k index [0, 1, ..., K-1]
 k = (0:K-1)';
-% b = [0:L-1]';
 z = (2*L + 1 - sqrt((2*L + 1).^2 - 8*k))/2;%(2*L + 1 - sqrt((2*L + 1).^2 - 8*k))/2;
 bi = floor(z);
 bj =   k - bi*L + bi.*(bi - 1)/2 + bi;%k - bi*L + bi.*(bi-1)/2 + L (4.13)
@@ -63,7 +65,7 @@ pip = 4*pi/3;
 r_fun = @(x) ro*delta.^x;      % [µm] aggregate radius
 v_fun = @(x) pip*r_fun(x).^3;  % [µm^3] aggregate volume
 d_fun = @(x,z) rhoo*lambda.^z.*q.^x;    % [kg/m^3] aggregate excess density
-p_fun = @(x) delta.^((a-3)*x); % dry mass fraction
+p_fun = @(x) delta.^((a-3)*x); % dry mass fraction (phi)
 m_fun = @(x,z) v_fun(x).*(d_fun(x,z) + rho_sw)*1E-18*1E9; % [µg] aggregate total mass
 md_fun = @(x,z) v_fun(x).*(d_fun(x,z) + p_fun(x)*rho_sw)*1E-18*1E9; % [µg] aggregate dry mass
 e_fun = @(x,z) v_fun(x).*d_fun(x,z)*1E-18*1E9; % [µg] aggregate excess mass
@@ -92,10 +94,10 @@ end
 
 
 %% transformations
-xzb = @(b) [floor(b/(Nd)), b - floor(b/(Nd))*(Nd)]; % bin number into x-z coordinates
+% xzb = @(b) [floor(b/(Nd)), b - floor(b/(Nd))*(Nd)]; % bin number into x-z coordinates
 bxz = @(x,z) x*(Nd) + z; %gives bin number in a vector
 
-%coordinates of the daughter particles for every combination
+% coordinates of the daughter particles for every combination
 xioj = log(delta.^(a*xi) + delta.^(a*xj))./log(delta^a);
 zioj = log(lambda.^zi.*delta.^(a*(xi-xioj)) + lambda.^zj.*delta.^(a*(xj-xioj)))/log(lambda);
 
@@ -151,7 +153,7 @@ beta   = zeros(size(xi));
 for i = 1:K
     ri = r_mean(xi(i)+1); wi = w_it(xi(i)+1); %[m/s]
     rj = r_mean(xj(i)+1); wj = w_it(xj(i)+1); %[m/s]
-    beta_b(i) = (2*kb*T)./(3*mu)*(ri+rj)^2./(ri*rj);  % [m^3/s], Brownian motion
+    beta_b(i) = (2*kb*T)./(3*mu)*(ri+rj)^2./(ri*rj);  % [m^3/s], Brownian motion  % 
     pp = ri/rj;
     beta_s(i) = 9.8*(pp.^2./(1+2*pp.^2)).*(epsilon/nu)^0.5.*(1E-6*(ri+rj))^3;  %[m^3/s], Turbulent shear
     beta_d(i) = 0.5*pi*abs(wi - wj)*(1E-6*ri).^2; % [m^3/s], Differental settling
@@ -160,41 +162,47 @@ end
 
 
 %% Porosity estimate
-phi = delta.^((a-3)*x_mesh); % phi == 1 - porosity (i.e. dry mass volume fraction)
+% phi = delta.^((a-3)*x_mesh); % phi == 1 - porosity (i.e. dry mass volume fraction)
 
 
 %% Fragmentation
-f_fun = @(x) (ro*delta.^x/1E4).^3; % propostional to volume
-pfrag = f_fun(x_mesh).*(1-phi)*(epsilon*1E6);
-%pfrag = f_fun(x_mesh,z_mesh);
-% dfrag = 0.5;
+% f_fun = @(x) (ro*delta.^x/1E4).^3; % propostional to volume
+% pfrag = f_fun(x_mesh).*(1-phi)*(epsilon*1E6);
+
+phi = p_mean.*ones(10,30);
+
+f_fun = @(x) Frate*(r_mean/r_crit).^3; % propostional to volume
+pfrag = f_fun(x_mesh).*(1-phi)*(epsilon/epsilon_crit);
 
 
 %% Remineralization
-%remin = rfactor*((1-q)/(3-a))*(q.^x_mesh).*(1+z_mesh);
-%remin = rfactor*(1+z_mesh);
-remin = rfactor/log(lambda)*ones(size(x_mesh));
-%remin = rfactor*(zw+z_mesh);
+remin = rfactor/log(lambda)*z_mesh;
 
+% maxd_mean = max(max(d_mean));
+
+% Test
+% remin1 = rfactor*((1-q)/(3-a))*(q.^x_mesh).*(1+z_mesh);
+% remin2 = rfactor/log(lambda) * (d_mean/maxd_mean);
+% remin3 = rfactor*(zw+z_mesh);
 
 %% Interactions
-% N = zeros(L,1); %number of particles/m^3 
 M = zeros(L,1); % [µgC/ m^3]
-% m = m_mean;
 
 
 %% Productivity
 prod = zeros(Nd,Nr); 
 prod(1:end,1) = MtoC*Ptotal/Nd/H;% production of POM [µg / m^3 / day] (estimate from pimary prodiction)
 
-mdry = v_mean .* (d_mean * 1E-9 + phi * rho_sw * 1E-9); % [µm] of a singe aggregate
+% mdry = v_mean .* (d_mean * 1E-9 + phi * rho_sw * 1E-9); % [µg] of a singe aggregate
+mdry = md_mean;
+
 
 %% Time dependent solution 
 tic
 options = odeset('NonNegative',1:length(M(:)));
 if seasonal
     %disp('seasonal')
-    [t,Mo] = ode15s(@interaxSeason, [0:Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),remin(:),rfactor,pfrag(:));
+    [t,Mo] = ode15s(@interaxseason, [0:Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),remin(:),rfactor,pfrag(:));
 else
     %disp('non-seasonal')
     [t,Mo] = ode15s(@interax, [0 Tmax], [M(:) ],options,mdry,bi,bj,Nr,Nd,b300,b301,b310,b311,f00,f01,f10,f11,alpha,beta,w,H,prod(:),remin(:),rfactor,pfrag(:));

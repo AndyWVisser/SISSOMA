@@ -41,10 +41,12 @@ end
 
 
 %% Remineralization
-dNrem = remin(:).*N(:);
-dNrom = -dNrem + [dNrem(2:end); 0];
-dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end);
-dMremin = dNrom.*mdry(:);
+% dNrem = remin(:).*N(:);
+% dNrom = -dNrem + [dNrem(2:end); 0];
+% dNrom(Nd:Nd:end) = -dNrem(Nd:Nd:end);
+% dMremin = dNrom.*mdry(:);
+
+dMremin = -rfact * M;
 
 
 %% Fragmentation
